@@ -1,5 +1,5 @@
-const markdownlint = require('markdownlint');
-const enforceAPIStructure = require('./enforce-api-structure.js');
+const markdownlint = require('markdownlint')
+const enforceAPIStructure = require('./enforce-api-structure.js')
 
 const options = {
   files: ['test2.md'],

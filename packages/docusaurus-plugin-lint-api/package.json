@@ -6,5 +6,8 @@
   "license": "MIT",
   "devDependencies": {
     "markdownlint": "^0.20.3"
+  },
+  "dependencies": {
+    "diff": "^4.0.2"
   }
 }

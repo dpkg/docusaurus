@@ -1,13 +1,31 @@
 // The difference between the heading token and paragraph is 3,
 // heading_open, inline, heading_close
-const OFFSET_PARAGRAPH = 3;
+const fs = require("fs")
 
+const markdownIt = require("markdown-it")()
+
+const content = fs.readFileSync('template.md', 'utf-8');
+const tempTokens = markdownIt.parse(content)
+const REGEX = /^(h3)((p)+(code)+)+$/g
 module.exports = {
   names: [ "enforce-api-" ],
   description: "Enforces the structure of an API file",
   tags: [ "API", "md", "structure" ],
   function: function rule(params, onError) {
-    const indexes = params.tokens.map(function mapToIndex(token, index) {
+    const myTokens = params.tokens.filter(function filterTokens(token){
+      return !token.type.includes('close') && !token.type.includes('inline')
+    }).map(function tranformTokens(token){
+      return token.tag
+    })
+    const myTokens2 = tempTokens.filter(function filterTokens(token){
+      return !token.type.includes('close') && !token.type.includes('inline')
+    }).map(function tranformTokens(token){
+      return token.tag
+    })
+    console.log(myTokens.join('').match(REGEX))
+
+
+    /*const indexes = params.tokens.map(function mapToIndex(token, index) {
       const isNewSection = token.type === 'heading_open';
       if (isNewSection) return index
       return undefined
@@ -41,6 +59,6 @@ module.exports = {
           "context": codeToken.line.substr(0, 7)
         });
       }
-    }
+    }*/
   }
 }
