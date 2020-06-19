@@ -1,10 +1,8 @@
-This preset generates a file per each operation file.
-
-## Installation
+# Installation
 
     $ yarn add @graphql-codegen/near-operation-file-preset
 
-## Example
+# Example
 
 In order to use this preset, you need to add 2 outputs to your `codegen.yml` file:
 
