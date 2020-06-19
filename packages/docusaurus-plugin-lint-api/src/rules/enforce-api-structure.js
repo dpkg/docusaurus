@@ -6,7 +6,7 @@ const markdownIt = require("markdown-it")()
 
 const template = fs.readFileSync('template.md', 'utf-8');
 const tempTokens = markdownIt.parse(template)
-const REGEX = /^(h3)((p)+(code)+)+$/g
+const REGEX = /^(h3)((p)+(code)+)+$/
 
 function getRepresentation(tokens) {
   const formattedTokens = tokens.filter(function filterTokens(token){
@@ -23,6 +23,7 @@ module.exports = {
   description: "Enforces the structure of an API file",
   tags: [ "API", "md", "structure" ],
   function: function rule(params, onError) {
+    // Add file config
     const myTokens = params.tokens.filter(function filterTokens(token){
       return !token.type.includes('close') && !token.type.includes('inline')
     }).map(function tranformTokens(token){
@@ -45,9 +46,9 @@ module.exports = {
       if(isValidAPI !== contentRepresentation) {
         // see how I'll get these number things
         onError({
-          "lineNumber": 1,
-          "detail": "Your file is not following the recommended structure"+ contentRepresentation,
-          "context": "aaaa"
+          "lineNumber": params.tokens[indexes[i]].lineNumber,
+          "detail": `This section is not following the recommended structure ${tempRepresentation}`,
+          "context": params.tokens[indexes[i]].line
         });
       }
     }

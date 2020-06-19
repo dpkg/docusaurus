@@ -7,10 +7,6 @@ It's important to register filename hashes in Build Tracker builds foe each arti
 
 For example, if your dist folder looks like this [aa](aaa.md):
 
-```
-vendor.a64785b.js
-main.56acd2e.js
-```
 
 ### Teste
 
