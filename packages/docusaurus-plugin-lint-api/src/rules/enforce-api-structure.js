@@ -4,11 +4,22 @@ const fs = require("fs")
 
 const markdownIt = require("markdown-it")()
 
-const content = fs.readFileSync('template.md', 'utf-8');
-const tempTokens = markdownIt.parse(content)
+const template = fs.readFileSync('template.md', 'utf-8');
+const tempTokens = markdownIt.parse(template)
 const REGEX = /^(h3)((p)+(code)+)+$/g
+
+function getRepresentation(tokens) {
+  const formattedTokens = tokens.filter(function filterTokens(token){
+    return !token.type.includes('close') && !token.type.includes('inline')
+  }).map(function tranformTokens(token){
+    return token.tag
+  })
+
+  return formattedTokens.join('')
+}
+
 module.exports = {
-  names: [ "enforce-api-" ],
+  names: [ "enforce-api-structure" ],
   description: "Enforces the structure of an API file",
   tags: [ "API", "md", "structure" ],
   function: function rule(params, onError) {
@@ -17,15 +28,8 @@ module.exports = {
     }).map(function tranformTokens(token){
       return token.tag
     })
-    const myTokens2 = tempTokens.filter(function filterTokens(token){
-      return !token.type.includes('close') && !token.type.includes('inline')
-    }).map(function tranformTokens(token){
-      return token.tag
-    })
-    console.log(myTokens.join('').match(REGEX))
-
-
-    /*const indexes = params.tokens.map(function mapToIndex(token, index) {
+    const tempRepresentation = getRepresentation(tempTokens)
+    const indexes = params.tokens.map(function mapToIndex(token, index) {
       const isNewSection = token.type === 'heading_open';
       if (isNewSection) return index
       return undefined
@@ -33,32 +37,19 @@ module.exports = {
       return index !== undefined
     })
 
-    for (let i = 0; i < indexes.length; i++){
-      const headingToken = params.tokens[indexes[i]];
-      const content = params.tokens.slice(indexes[i]+OFFSET_PARAGRAPH, indexes[i+1])
-      const isInvalidContent = content.some(function isValid(token) {
-        if(token.tag != 'p' && token.tag != 'code' && token.tag != ''){
-          const lines = token.map[1] - token.map[0];
-          if(token.map) {
-            onError({
-              "lineNumber": token.lineNumber,
-              "detail": "This section current is not covered by our toc in " + lines + " line(s).",
-              "context": token.line.substr(0, 7)
-            });
-          }
-        }
-      })
-      // Before the next section, the last element should be a code token
-      const [codeToken] = content.slice(-1)
-      const isInvalidCode = codeToken.tag == 'code' && codeToken.content != '';
-
-      if(isInvalidCode){
+    for(let i = 0; i < indexes.length; i++){
+      // slice works with undefined, in case of the index be greater than indexes length
+      const content = params.tokens.slice(indexes[i], indexes[i+1])
+      const contentRepresentation = getRepresentation(content)
+      const [isValidAPI] = contentRepresentation.match(REGEX) || ['']
+      if(isValidAPI !== contentRepresentation) {
+        // see how I'll get these number things
         onError({
-          "lineNumber": codeToken.lineNumber,
-          "detail": "This section current is not covered by our toc in  line(s).",
-          "context": codeToken.line.substr(0, 7)
+          "lineNumber": 1,
+          "detail": "Your file is not following the recommended structure"+ contentRepresentation,
+          "context": "aaaa"
         });
       }
-    }*/
+    }
   }
 }

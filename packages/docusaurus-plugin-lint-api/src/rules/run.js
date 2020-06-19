@@ -10,5 +10,4 @@ markdownlint(options, function callback(err, result) {
   if (!err) {
     console.log(result.toString());
   }
-  console.log(err)
 });

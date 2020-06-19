@@ -12,9 +12,10 @@ vendor.a64785b.js
 main.56acd2e.js
 ```
 
-![](aaa.png)
+### Teste
 
-You can extr
+You can extraaa
+
 ```js
 const parts = path.basename(fileName, '.js').split('.');
   return parts.length > 1 ? parts[parts.length - 1] : null;
