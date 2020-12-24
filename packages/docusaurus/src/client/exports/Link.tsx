@@ -10,6 +10,8 @@ import React, {ReactNode, useEffect, useRef} from 'react';
 import {NavLink, Link as RRLink} from 'react-router-dom';
 import isInternalUrl from './isInternalUrl';
 import ExecutionEnvironment from './ExecutionEnvironment';
+import {useLinksCollector} from '../LinksCollector';
+import {useBaseUrlUtils} from './useBaseUrl';
 
 declare global {
   interface Window {
@@ -20,14 +22,68 @@ declare global {
 interface Props {
   readonly isNavLink?: boolean;
   readonly to?: string;
-  readonly href: string;
+  readonly href?: string;
+  readonly activeClassName?: string;
   readonly children?: ReactNode;
+  readonly isActive?: () => boolean;
+  readonly autoAddBaseUrl?: boolean;
+
+  // escape hatch in case broken links check is annoying for a specific link
+  readonly 'data-noBrokenLinkCheck'?: boolean;
 }
 
-function Link({isNavLink, ...props}: Props): JSX.Element {
-  const {to, href} = props;
-  const targetLink = to || href;
-  const isInternal = isInternalUrl(targetLink);
+// TODO all this wouldn't be necessary if we used ReactRouter basename feature
+// We don't automatically add base urls to all links,
+// only the "safe" ones, starting with / (like /docs/introduction)
+// this is because useBaseUrl() actually transforms relative links
+// like "introduction" to "/baseUrl/introduction" => bad behavior to fix
+const shouldAddBaseUrlAutomatically = (to: string) => to.startsWith('/');
+
+function Link({
+  isNavLink,
+  to,
+  href,
+  activeClassName,
+  isActive,
+  'data-noBrokenLinkCheck': noBrokenLinkCheck,
+  autoAddBaseUrl = true,
+  ...props
+}: Props): JSX.Element {
+  const {withBaseUrl} = useBaseUrlUtils();
+  const linksCollector = useLinksCollector();
+
+  // IMPORTANT: using to or href should not change anything
+  // For example, MDX links will ALWAYS give us the href props
+  // Using one prop or the other should not be used to distinguish
+  // internal links (/docs/myDoc) from external links (https://github.com)
+  const targetLinkUnprefixed = to || href;
+
+  function maybeAddBaseUrl(str: string) {
+    return autoAddBaseUrl && shouldAddBaseUrlAutomatically(str)
+      ? withBaseUrl(str)
+      : str;
+  }
+
+  const isInternal = isInternalUrl(targetLinkUnprefixed);
+
+  // pathname:// is a special "protocol" we use to tell Docusaurus link
+  // that a link is not "internal" and that we shouldn't use history.push()
+  // this is not ideal but a good enough escape hatch for now
+  // see https://github.com/facebook/docusaurus/issues/3309
+  // note: we want baseUrl to be appended (see issue for details)
+  // TODO read routes and automatically detect internal/external links?
+  const targetLinkWithoutPathnameProtocol = targetLinkUnprefixed?.replace(
+    'pathname://',
+    '',
+  );
+
+  // TODO we should use ReactRouter basename feature instead!
+  // Automatically apply base url in links that start with /
+  const targetLink =
+    typeof targetLinkWithoutPathnameProtocol !== 'undefined'
+      ? maybeAddBaseUrl(targetLinkWithoutPathnameProtocol)
+      : undefined;
+
   const preloaded = useRef(false);
   const LinkComponent = isNavLink ? NavLink : RRLink;
 
@@ -83,12 +139,19 @@ function Link({isNavLink, ...props}: Props): JSX.Element {
     };
   }, [targetLink, IOSupported, isInternal]);
 
-  return !targetLink || !isInternal || targetLink.startsWith('#') ? (
+  const isAnchorLink = targetLink?.startsWith('#') ?? false;
+  const isRegularHtmlLink = !targetLink || !isInternal || isAnchorLink;
+
+  if (targetLink && isInternal && !isAnchorLink && !noBrokenLinkCheck) {
+    linksCollector.collectLink(targetLink);
+  }
+
+  return isRegularHtmlLink ? (
     // eslint-disable-next-line jsx-a11y/anchor-has-content
     <a
-      // @ts-expect-error: href specified twice needed to pass children and other user specified props
       href={targetLink}
-      {...(!isInternal && {target: '_blank', rel: 'noopener noreferrer'})}
+      {...(targetLinkUnprefixed &&
+        !isInternal && {target: '_blank', rel: 'noopener noreferrer'})}
       {...props}
     />
   ) : (
@@ -96,7 +159,9 @@ function Link({isNavLink, ...props}: Props): JSX.Element {
       {...props}
       onMouseEnter={onMouseEnter}
       innerRef={handleRef}
-      to={targetLink}
+      to={targetLink || ''}
+      // avoid "React does not recognize the `activeClassName` prop on a DOM element"
+      {...(isNavLink && {isActive, activeClassName})}
     />
   );
 }

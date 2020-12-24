@@ -61,92 +61,82 @@ class Index extends React.Component {
 
     return (
       <div>
-        <div className="announcement">
-          <div className="announcement-inner">
-            Black Lives Matter.{' '}
-            <a href="https://support.eji.org/give/153413/#!/donation/checkout">
-              Support the Equal Justice Initiative
-            </a>
-            .
-          </div>
-        </div>
         <HomeSplash siteConfig={siteConfig} language={language} />
         <div className="announcement">
           <div className="announcement-inner">
-            If you don't need advanced features such as versioning or
-            translations, try out{' '}
-            <a href="https://v2.docusaurus.io">Docusaurus 2</a> instead!
-            Contribute to its roadmap by suggesting features or{' '}
-            <a href="https://v2.docusaurus.io/feedback/">
-              giving feedback here
-            </a>
-            !
+            <div>
+              <span className="announcement-important">IMPORTANT</span>: this is
+              the documentation of{' '}
+              <span className="announcement-important">Docusaurus v1</span>.
+            </div>
+            <div>
+              We now recommend using{' '}
+              <a href="https://v2.docusaurus.io">Docusaurus 2</a> instead!
+            </div>
           </div>
         </div>
         <div className="mainContainer">
-          <div style={{marginTop: -40}}>
-            <Container padding={['bottom', 'top']} background="light">
-              <GridBlock
-                align="center"
-                contents={[
-                  {
-                    content: `Save time and focus on your project's documentation. Simply
+          <Container padding={['bottom', 'top']} background="light">
+            <GridBlock
+              align="center"
+              contents={[
+                {
+                  content: `Save time and focus on your project's documentation. Simply
                     write docs and blog posts with [Markdown](${siteConfig.baseUrl}docs/${this.props.language}/doc-markdown)
                     and Docusaurus will publish a set of static html files ready
                     to serve.`,
-                    image: `${siteConfig.baseUrl}img/undraw_typewriter.svg`,
-                    imageAlign: 'top',
-                    imageAlt: 'Markdown',
-                    title: <translate>Powered by Markdown</translate>,
-                  },
-                  {
-                    content: `[Extend or customize](${siteConfig.baseUrl}docs/${this.props.language}/api-pages)
+                  image: `${siteConfig.baseUrl}img/undraw_typewriter.svg`,
+                  imageAlign: 'top',
+                  imageAlt: 'Markdown',
+                  title: <translate>Powered by Markdown</translate>,
+                },
+                {
+                  content: `[Extend or customize](${siteConfig.baseUrl}docs/${this.props.language}/api-pages)
                     your project's layout by reusing React. Docusaurus can be
                     extended while reusing the same header and footer.`,
-                    image: `${siteConfig.baseUrl}img/undraw_react.svg`,
-                    imageAlign: 'top',
-                    imageAlt: 'React',
-                    title: <translate>Built Using React</translate>,
-                  },
-                  {
-                    content: `[Localization](${siteConfig.baseUrl}docs/${this.props.language}/translation)
+                  image: `${siteConfig.baseUrl}img/undraw_react.svg`,
+                  imageAlign: 'top',
+                  imageAlt: 'React',
+                  title: <translate>Built Using React</translate>,
+                },
+                {
+                  content: `[Localization](${siteConfig.baseUrl}docs/${this.props.language}/translation)
                     comes pre-configured. Use [Crowdin](https://crowdin.com/) to translate your docs
                     into over 70 languages.`,
-                    image: `${siteConfig.baseUrl}img/undraw_around_the_world.svg`,
-                    imageAlign: 'top',
-                    imageAlt: 'Translation',
-                    title: <translate>Ready for Translations</translate>,
-                  },
-                ]}
-                layout="threeColumn"
-              />
-              <br />
-              <br />
-              <GridBlock
-                align="center"
-                contents={[
-                  {
-                    content: `Support users on all versions of your project. Document
+                  image: `${siteConfig.baseUrl}img/undraw_around_the_world.svg`,
+                  imageAlign: 'top',
+                  imageAlt: 'Translation',
+                  title: <translate>Ready for Translations</translate>,
+                },
+              ]}
+              layout="threeColumn"
+            />
+            <br />
+            <br />
+            <GridBlock
+              align="center"
+              contents={[
+                {
+                  content: `Support users on all versions of your project. Document
                     [versioning](${siteConfig.baseUrl}docs/${this.props.language}/versioning)
                     helps you keep documentation in sync with project releases.`,
-                    image: `${siteConfig.baseUrl}img/undraw_version_control.svg`,
-                    imageAlign: 'top',
-                    imageAlt: 'Document Versioning',
-                    title: <translate>Document Versioning</translate>,
-                  },
-                  {
-                    content: `Make it easy for your community to [find](${siteConfig.baseUrl}docs/${this.props.language}/search) what they need in your documentation.
+                  image: `${siteConfig.baseUrl}img/undraw_version_control.svg`,
+                  imageAlign: 'top',
+                  imageAlt: 'Document Versioning',
+                  title: <translate>Document Versioning</translate>,
+                },
+                {
+                  content: `Make it easy for your community to [find](${siteConfig.baseUrl}docs/${this.props.language}/search) what they need in your documentation.
                     We proudly support [Algolia documentation search](https://www.algolia.com/).`,
-                    image: `${siteConfig.baseUrl}img/undraw_algolia.svg`,
-                    imageAlign: 'top',
-                    imageAlt: 'Document Search',
-                    title: <translate>Document Search</translate>,
-                  },
-                ]}
-                layout="twoColumn"
-              />
-            </Container>
-          </div>
+                  image: `${siteConfig.baseUrl}img/undraw_algolia.svg`,
+                  imageAlign: 'top',
+                  imageAlt: 'Document Search',
+                  title: <translate>Document Search</translate>,
+                },
+              ]}
+              layout="twoColumn"
+            />
+          </Container>
           <Container padding={['bottom', 'top']}>
             <GridBlock
               contents={[

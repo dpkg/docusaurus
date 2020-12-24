@@ -5,26 +5,38 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+// ESLint doesn't understand types dependencies in d.ts
+// eslint-disable-next-line import/no-extraneous-dependencies
 import {Loader, Configuration} from 'webpack';
 import {Command} from 'commander';
 import {ParsedUrlQueryInput} from 'querystring';
 import {MergeStrategy} from 'webpack-merge';
 
+export type ReportingSeverity = 'ignore' | 'log' | 'warn' | 'error' | 'throw';
+
+export type ThemeConfig = {
+  [key: string]: unknown;
+};
+
 export interface DocusaurusConfig {
   baseUrl: string;
+  baseUrlIssueBanner: boolean;
   favicon: string;
   tagline?: string;
   title: string;
   url: string;
+  i18n: I18nConfig;
+  onBrokenLinks: ReportingSeverity;
+  onBrokenMarkdownLinks: ReportingSeverity;
+  onDuplicateRoutes: ReportingSeverity;
+  noIndex: boolean;
   organizationName?: string;
   projectName?: string;
   githubHost?: string;
   plugins?: PluginConfig[];
   themes?: PluginConfig[];
   presets?: PresetConfig[];
-  themeConfig?: {
-    [key: string]: unknown;
-  };
+  themeConfig: ThemeConfig;
   customFields?: {
     [key: string]: unknown;
   };
@@ -35,6 +47,8 @@ export interface DocusaurusConfig {
         [key: string]: unknown;
       }
   )[];
+  clientModules?: string[];
+  ssrTemplate?: string;
   stylesheets?: (
     | string
     | {
@@ -42,11 +56,63 @@ export interface DocusaurusConfig {
         [key: string]: unknown;
       }
   )[];
+  titleDelimiter?: string;
 }
 
+/**
+ * - `type: 'package'`, plugin is in a different package.
+ * - `type: 'project'`, plugin is in the same docusaurus project.
+ * - `type: 'local'`, none of plugin's ancestor directory contains any package.json.
+ * - `type: 'synthetic'`, docusaurus generated internal plugin.
+ */
+export type DocusaurusPluginVersionInformation =
+  | {
+      readonly type: 'package';
+      readonly name?: string;
+      readonly version?: string;
+    }
+  | {readonly type: 'project'}
+  | {readonly type: 'local'}
+  | {readonly type: 'synthetic'};
+
+export interface DocusaurusSiteMetadata {
+  readonly docusaurusVersion: string;
+  readonly siteVersion?: string;
+  readonly pluginVersions: Record<string, DocusaurusPluginVersionInformation>;
+}
+
+// Inspired by Chrome JSON, because it's a widely supported i18n format
+// https://developer.chrome.com/apps/i18n-messages
+// https://support.crowdin.com/file-formats/chrome-json/
+// https://www.applanga.com/docs/formats/chrome_i18n_json
+// https://docs.transifex.com/formats/chrome-json
+// https://help.phrase.com/help/chrome-json-messages
+export type TranslationMessage = {message: string; description?: string};
+export type TranslationFileContent = Record<string, TranslationMessage>;
+export type TranslationFile = {path: string; content: TranslationFileContent};
+export type TranslationFiles = TranslationFile[];
+
+export type I18nLocaleConfig = {
+  label: string;
+};
+
+export type I18nConfig = {
+  defaultLocale: string;
+  locales: [string, ...string[]];
+  localeConfigs: Record<string, I18nLocaleConfig>;
+};
+
+export type I18n = I18nConfig & {
+  currentLocale: string;
+};
+
 export interface DocusaurusContext {
-  siteConfig?: DocusaurusConfig;
-  isClient?: boolean;
+  siteConfig: DocusaurusConfig;
+  siteMetadata: DocusaurusSiteMetadata;
+  globalData: Record<string, any>;
+  i18n: I18n;
+  codeTranslations: Record<string, string>;
+  isClient: boolean;
 }
 
 export interface Preset {
@@ -59,20 +125,33 @@ export type PresetConfig =
   | [string]
   | string;
 
-export interface StartCLIOptions {
-  port: string;
-  host: string;
+export type HostPortCLIOptions = {
+  host?: string;
+  port?: string;
+};
+
+export type StartCLIOptions = HostPortCLIOptions & {
   hotOnly: boolean;
   open: boolean;
-  poll: boolean;
-}
+  poll: boolean | number;
+  locale?: string;
+};
 
-export interface BuildCLIOptions {
+export type ServeCLIOptions = HostPortCLIOptions & {
+  build: boolean;
+  dir: string;
+};
+
+export type BuildOptions = {
   bundleAnalyzer: boolean;
   outDir: string;
   minify: boolean;
   skipBuild: boolean;
-}
+};
+
+export type BuildCLIOptions = BuildOptions & {
+  locale?: string;
+};
 
 export interface LoadContext {
   siteDir: string;
@@ -80,6 +159,9 @@ export interface LoadContext {
   siteConfig: DocusaurusConfig;
   outDir: string;
   baseUrl: string;
+  i18n: I18n;
+  ssrTemplate?: string;
+  codeTranslations: Record<string, string>;
 }
 
 export interface InjectedHtmlTags {
@@ -91,6 +173,7 @@ export interface InjectedHtmlTags {
 export type HtmlTags = string | HtmlTagObject | (string | HtmlTagObject)[];
 
 export interface Props extends LoadContext, InjectedHtmlTags {
+  routes: RouteConfig[];
   routesPaths: string[];
   plugins: Plugin<any, unknown>[];
 }
@@ -98,7 +181,16 @@ export interface Props extends LoadContext, InjectedHtmlTags {
 export interface PluginContentLoadedActions {
   addRoute(config: RouteConfig): void;
   createData(name: string, data: any): Promise<string>;
+  setGlobalData<T = unknown>(data: T): void;
 }
+
+export type AllContent = Record<
+  string, // plugin name
+  Record<
+    string, // plugin id
+    unknown // plugin data
+  >
+>;
 
 export interface Plugin<T, U = unknown> {
   name: string;
@@ -109,10 +201,11 @@ export interface Plugin<T, U = unknown> {
     content,
     actions,
   }: {
-    content: T;
+    content: T; // the content loaded by this plugin instance
+    allContent: AllContent; // content loaded by ALL the plugins
     actions: PluginContentLoadedActions;
   }): void;
-  routesLoaded?(routes: RouteConfig[]): void;
+  routesLoaded?(routes: RouteConfig[]): void; // TODO remove soon, deprecated (alpha-60)
   postBuild?(props: Props): void;
   postStart?(props: Props): void;
   configureWebpack?(
@@ -130,15 +223,32 @@ export interface Plugin<T, U = unknown> {
     preBodyTags?: HtmlTags;
     postBodyTags?: HtmlTags;
   };
+  getSwizzleComponentList?(): string[];
+
+  // translations
+  getTranslationFiles?(): Promise<TranslationFiles>;
+  translateContent?({
+    content,
+    translationFiles,
+  }: {
+    content: T; // the content loaded by this plugin instance
+    translationFiles: TranslationFiles;
+  }): T;
+  translateThemeConfig?({
+    themeConfig,
+    translationFiles,
+  }: {
+    themeConfig: ThemeConfig;
+    translationFiles: TranslationFiles;
+  }): ThemeConfig;
 }
 
 export type ConfigureWebpackFn = Plugin<unknown>['configureWebpack'];
 export type ConfigureWebpackFnMergeStrategy = Record<string, MergeStrategy>;
 
-export type PluginConfig =
-  | [string, Record<string, unknown>]
-  | [string]
-  | string;
+export type PluginOptions = {id?: string} & Record<string, unknown>;
+
+export type PluginConfig = [string, PluginOptions] | [string] | string;
 
 export interface ChunkRegistry {
   loader: string;
@@ -229,7 +339,18 @@ export interface ThemeConfigValidationContext<T, E extends Error = Error> {
   themeConfig: Partial<T>;
 }
 
+// TODO we should use a Joi type here
 export interface ValidationSchema<T> {
-  validate(options: Partial<T>, opt: object): ValidationResult<T>;
+  validate(
+    options: Partial<T>,
+    opt: Record<string, unknown>,
+  ): ValidationResult<T>;
   unknown(): ValidationSchema<T>;
+  append(data: any): ValidationSchema<T>;
+}
+
+export interface TOCItem {
+  readonly value: string;
+  readonly id: string;
+  readonly children: TOCItem[];
 }

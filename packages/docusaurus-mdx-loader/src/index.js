@@ -12,14 +12,16 @@ const emoji = require('remark-emoji');
 const matter = require('gray-matter');
 const stringifyObject = require('stringify-object');
 const slug = require('./remark/slug');
-const rightToc = require('./remark/rightToc');
+const toc = require('./remark/toc');
+const transformImage = require('./remark/transformImage');
+const transformLinks = require('./remark/transformLinks');
 
 const DEFAULT_OPTIONS = {
   rehypePlugins: [],
-  remarkPlugins: [emoji, slug, rightToc],
+  remarkPlugins: [emoji, slug, toc],
 };
 
-module.exports = async function (fileString) {
+module.exports = async function docusaurusMdxLoader(fileString) {
   const callback = this.async();
 
   const {data, content} = matter(fileString);
@@ -29,11 +31,20 @@ module.exports = async function (fileString) {
     remarkPlugins: [
       ...(reqOptions.beforeDefaultRemarkPlugins || []),
       ...DEFAULT_OPTIONS.remarkPlugins,
+      [
+        transformImage,
+        {staticDir: reqOptions.staticDir, filePath: this.resourcePath},
+      ],
+      [
+        transformLinks,
+        {staticDir: reqOptions.staticDir, filePath: this.resourcePath},
+      ],
       ...(reqOptions.remarkPlugins || []),
     ],
     rehypePlugins: [
       ...(reqOptions.beforeDefaultRehypePlugins || []),
       ...DEFAULT_OPTIONS.rehypePlugins,
+
       ...(reqOptions.rehypePlugins || []),
     ],
     filepath: this.resourcePath,
@@ -61,6 +72,17 @@ module.exports = async function (fileString) {
     }
   }
 
+  if (
+    options.forbidFrontMatter &&
+    typeof options.forbidFrontMatter === 'function'
+  ) {
+    if (
+      options.forbidFrontMatter(this.resourcePath) &&
+      Object.keys(data).length > 0
+    ) {
+      return callback(new Error(`Front matter is forbidden in this file`));
+    }
+  }
   const code = `
   import React from 'react';
   import { mdx } from '@mdx-js/react';

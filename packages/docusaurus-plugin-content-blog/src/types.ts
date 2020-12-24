@@ -5,6 +5,11 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+export type BlogContentPaths = {
+  contentPath: string;
+  contentPathLocalized: string;
+};
+
 export interface BlogContent {
   blogPosts: BlogPost[];
   blogListPaginated: BlogPaginated[];
@@ -20,6 +25,7 @@ export interface DateLink {
 export type FeedType = 'rss' | 'atom';
 
 export interface PluginOptions {
+  id?: string;
   path: string;
   routeBasePath: string;
   include: string[];
@@ -28,19 +34,31 @@ export interface PluginOptions {
   blogPostComponent: string;
   blogTagsListComponent: string;
   blogTagsPostsComponent: string;
-  remarkPlugins: ([Function, object] | Function)[];
+  blogTitle: string;
+  blogDescription: string;
+  blogSidebarCount: number | 'ALL';
+  blogSidebarTitle: string;
+  remarkPlugins: ([Function, Record<string, unknown>] | Function)[];
+  beforeDefaultRehypePlugins: (
+    | [Function, Record<string, unknown>]
+    | Function
+  )[];
+  beforeDefaultRemarkPlugins: (
+    | [Function, Record<string, unknown>]
+    | Function
+  )[];
   rehypePlugins: string[];
   truncateMarker: RegExp;
   showReadingTime: boolean;
   feedOptions: {
-    type: [FeedType];
+    type?: [FeedType] | null;
     title?: string;
     description?: string;
     copyright: string;
     language?: string;
   };
   editUrl?: string;
-  admonitions: any;
+  admonitions: Record<string, unknown>;
 }
 
 export interface BlogTags {
@@ -66,6 +84,8 @@ export interface BlogPaginatedMetadata {
   totalCount: number;
   previousPage: string | null;
   nextPage: string | null;
+  blogTitle: string;
+  blogDescription: string;
 }
 
 export interface BlogPaginated {
@@ -112,3 +132,16 @@ export interface TagModule {
   count: number;
   permalink: string;
 }
+
+export type BlogBrokenMarkdownLink = {
+  folderPath: string;
+  filePath: string;
+  link: string;
+};
+export type BlogMarkdownLoaderOptions = {
+  siteDir: string;
+  contentPaths: BlogContentPaths;
+  truncateMarker: RegExp;
+  blogPosts: BlogPost[];
+  onBrokenMarkdownLink: (brokenMarkdownLink: BlogBrokenMarkdownLink) => void;
+};

@@ -27,11 +27,29 @@ const users = [
     pinned: false,
   },
   {
+    title: 'Axioms',
+    description: 'Axioms Developer Hub and Documentation Portal',
+    preview: require('./showcase/axioms.png'),
+    website: 'https://developer.axioms.io/',
+    source: 'https://github.com/axioms-io/developer',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
     title: 'Benthos',
     description: 'A stream processor for mundane tasks',
     preview: require('./showcase/benthos.png'),
     website: 'https://benthos.dev/',
     source: 'https://github.com/Jeffail/benthos',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'Botonic',
+    description: 'Build Chatbots and Conversational Apps Using React',
+    preview: require('./showcase/botonic.png'),
+    website: 'https://botonic.io/',
+    source: 'https://github.com/hubtype/botonic',
     fbOpenSource: false,
     pinned: false,
   },
@@ -55,6 +73,15 @@ const users = [
     pinned: false,
   },
   {
+    title: 'Clutch',
+    description: 'An extensible API and UI platform for infrastructure tooling',
+    preview: require('./showcase/clutch.png'),
+    website: 'https://clutch.sh/',
+    source: 'https://github.com/lyft/clutch',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
     title: 'Component Kit',
     description: 'A declarative UI framework for iOS',
     preview: require('./showcase/componentkit.png'),
@@ -62,6 +89,15 @@ const users = [
     source: 'https://github.com/facebook/componentkit',
     fbOpenSource: true,
     pinned: true,
+  },
+  {
+    title: 'ConfigCat Feature Flags',
+    description: 'A feature flag and remote configuration service.',
+    preview: require('./showcase/configcat.png'),
+    website: 'https://configcat.com/docs/',
+    source: 'https://github.com/configcat/docs',
+    fbOpenSource: false,
+    pinned: false,
   },
   {
     title: 'Eta',
@@ -80,6 +116,15 @@ const users = [
     source: 'https://github.com/facebook/flux',
     fbOpenSource: true,
     pinned: true,
+  },
+  {
+    title: 'FoalTS',
+    description: 'Node.JS framework for building web applications',
+    preview: require('./showcase/foal.png'),
+    website: 'https://foalts.org/',
+    source: 'https://github.com/FoalTS/foal/tree/master/docs',
+    fbOpenSource: false,
+    pinned: false,
   },
   {
     title: 'GraphQL Code Generator',
@@ -147,11 +192,114 @@ const users = [
     pinned: false,
   },
   {
+    title: 'NextAuth.js',
+    description: 'An open source serverless authentication library for next.js',
+    preview: require('./showcase/nextauthjs.png'),
+    website: 'https://next-auth.js.org/',
+    source: 'https://github.com/nextauthjs/next-auth',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'Oxidizer',
+    description: 'A Rust ORM based on tokio-postgres and refinery',
+    preview: require('./showcase/oxidizer.png'),
+    website: 'https://oxidizer.rs',
+    source: 'https://github.com/oxidizer-rs/website',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'QA-Board',
+    description:
+      'An open source run-tracker for algorithm and performance engineering with rich visualizations',
+    preview: require('./showcase/qa-board.png'),
+    website: 'https://samsung.github.io/qaboard/',
+    source: 'https://github.com/Samsung/qaboard',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'QuestDB',
+    description:
+      'An open source SQL database designed to process time series data',
+    preview: require('./showcase/questdb.png'),
+    website: 'https://questdb.io',
+    source: 'https://github.com/questdb/questdb.io',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'React Native',
+    description: 'A framework for building native apps using React',
+    preview: require('./showcase/reactnative.png'),
+    website: 'https://reactnative.dev',
+    source: 'https://github.com/facebook/react-native-website',
+    fbOpenSource: true,
+    pinned: false,
+  },
+  {
+    title: 'Runlet',
+    description: 'A cloud-based job manager that integrates your devices',
+    preview: require('./showcase/runlet.png'),
+    website: 'https://runlet.app',
+    source: 'https://github.com/runletapp/website',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'SpotifyAPI-NET',
+    description: 'A Client for the Spotify Web API, written in C#/.NET',
+    preview: require('./showcase/spotifyapi-net.png'),
+    website: 'https://johnnycrazy.github.io/SpotifyAPI-NET/',
+    source: 'https://github.com/JohnnyCrazy/SpotifyAPI-NET',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
     title: 'Supabase',
     description: 'Open Source Realtime and RESTful APIs for Postgres',
     preview: require('./showcase/supabase.png'),
     website: 'https://www.supabase.io/',
     source: 'https://github.com/supabase/monorepo',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'T-Regx',
+    description: 'Programmer-oriented Regular Expressions library for PHP',
+    preview: require('./showcase/t-regx.png'),
+    website: 'https://t-regx.com/',
+    source: 'https://github.com/T-Regx/T-Regx',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'Taro',
+    description: 'An open cross-end and cross-frame solution',
+    preview: require('./showcase/docs-taro-zone.png'),
+    website: 'https://docs.taro.zone/',
+    source: 'https://github.com/NervJS/taro',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'Tasit',
+    description:
+      'A JavaScript SDK for building native mobile Ethereum dapps with React Native',
+    preview: require('./showcase/tasit.png'),
+    website: 'https://docs.tasit.io/',
+    source: 'https://github.com/tasitlabs/tasit-sdk',
+    fbOpenSource: false,
+    pinned: false,
+  },
+  {
+    title: 'Tourmaline',
+    description:
+      'Fast and performant Telegram bot framework for the Crystal programming language',
+    preview: require('./showcase/tourmaline.png'),
+    website: 'https://tourmaline.dev',
+    source: 'https://github.com/protoncr/tourmaline',
     fbOpenSource: false,
     pinned: false,
   },
@@ -174,15 +322,45 @@ const users = [
     pinned: true,
   },
   {
-    title: 'Tourmaline',
+    title: 'Vue NodeGui',
+    description: 'A cross-platform native desktop app library',
+    preview: require('./showcase/vue-nodegui.png'),
+    website: 'https://vue.nodegui.org/',
+    source: 'https://github.com/nodegui/vue-nodegui',
+    fbOpenSource: false,
+    pinned: true,
+  },
+  {
+    title: 'Wasp',
     description:
-      'Fast and performant Telegram bot framework for the Crystal programming language',
-    preview: require('./showcase/tourmaline.png'),
-    website: 'https://tourmaline.dev',
-    source: 'https://github.com/protoncr/tourmaline',
+      'A DSL for building full-stack web apps with less boilerplate.',
+    preview: require('./showcase/wasp.png'),
+    website: 'https://wasp-lang.dev/',
+    source: 'https://github.com/wasp-lang/wasp',
     fbOpenSource: false,
     pinned: false,
   },
+  {
+    title: 'Wisdom',
+    description: 'Session replay web analytics with open data SQL/S3 access.',
+    preview: require('./showcase/wisdom.png'),
+    website: 'https://developers.getwisdom.io/',
+    source: 'https://github.com/Wisdom/dev-docs',
+    fbOpenSource: false,
+    pinned: true,
+  },
 ];
+
+users.forEach((user) => {
+  if (
+    !user.preview ||
+    (user.preview instanceof String &&
+      (user.preview.startsWith('http') || user.preview.startsWith('//')))
+  ) {
+    throw new Error(
+      `Bad user site image preview = ${user.preview}. The image should be hosted on Docusaurus site, and not use remote HTTP or HTTPS URLs`,
+    );
+  }
+});
 
 export default users;

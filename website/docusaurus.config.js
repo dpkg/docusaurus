@@ -8,26 +8,96 @@
 const path = require('path');
 const versions = require('./versions.json');
 
+// This probably only makes sense for the alpha phase, temporary
+function getNextAlphaVersionName() {
+  const expectedPrefix = '2.0.0-alpha.';
+
+  const lastReleasedVersion = versions[0];
+  if (!lastReleasedVersion.includes(expectedPrefix)) {
+    throw new Error(
+      'this code is only meant to be used during the 2.0 alpha phase.',
+    );
+  }
+  const alphaBuild = parseInt(
+    lastReleasedVersion.replace(expectedPrefix, ''),
+    10,
+  );
+  return `${expectedPrefix}${alphaBuild + 1}`;
+}
+
 const allDocHomesPaths = [
   '/docs/',
   '/docs/next/',
   ...versions.slice(1).map((version) => `/docs/${version}/`),
 ];
 
+const isDev = process.env.NODE_ENV === 'development';
+
+const isDeployPreview =
+  process.env.NETLIFY && process.env.CONTEXT === 'deploy-preview';
+
+const baseUrl = process.env.BASE_URL || '/';
+const isBootstrapPreset = process.env.DOCUSAURUS_PRESET === 'bootstrap';
+
+const isVersioningDisabled = !!process.env.DISABLE_VERSIONING;
+
 module.exports = {
   title: 'Docusaurus',
   tagline: 'Build optimized websites quickly, focus on your content',
   organizationName: 'facebook',
   projectName: 'docusaurus',
-  baseUrl: '/',
+  baseUrl,
+  baseUrlIssueBanner: true,
   url: 'https://v2.docusaurus.io',
+  i18n: {
+    defaultLocale: 'en',
+    locales: ['en', 'fr'],
+    localeConfigs: {
+      en: {
+        label: 'English',
+      },
+      fr: {
+        label: 'Français',
+      },
+    },
+  },
+  onBrokenLinks: 'throw',
+  onBrokenMarkdownLinks: 'warn',
   favicon: 'img/docusaurus.ico',
   customFields: {
     description:
       'An optimized site generator in React. Docusaurus helps you to move fast and write content. Build documentation websites, blogs, marketing pages, and more.',
   },
+  clientModules: [require.resolve('./dogfooding/clientModuleExample.ts')],
   themes: ['@docusaurus/theme-live-codeblock'],
   plugins: [
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'community',
+        path: 'community',
+        editUrl: 'https://github.com/facebook/docusaurus/edit/master/website/',
+        routeBasePath: 'community',
+        sidebarPath: require.resolve('./sidebarsCommunity.js'),
+        showLastUpdateAuthor: true,
+        showLastUpdateTime: true,
+      },
+    ],
+    [
+      '@docusaurus/plugin-content-blog',
+      {
+        id: 'second-blog',
+        path: 'dogfooding/second-blog',
+        routeBasePath: 'second-blog',
+        editUrl:
+          'https://github.com/facebook/docusaurus/edit/master/website/dogfooding',
+        postsPerPage: 3,
+        feedOptions: {
+          type: 'all',
+          copyright: `Copyright © ${new Date().getFullYear()} Facebook, Inc.`,
+        },
+      },
+    ],
     [
       '@docusaurus/plugin-client-redirects',
       {
@@ -39,6 +109,20 @@ module.exports = {
             return [`${path}/introduction`];
           }
         },
+        redirects: [
+          {
+            from: ['/docs/support', '/docs/next/support'],
+            to: '/community/support',
+          },
+          {
+            from: ['/docs/team', '/docs/next/team'],
+            to: '/community/team',
+          },
+          {
+            from: ['/docs/resources', '/docs/next/resources'],
+            to: '/community/resources',
+          },
+        ],
       },
     ],
     [
@@ -61,12 +145,12 @@ module.exports = {
           {
             tagName: 'link',
             rel: 'icon',
-            href: '/img/docusaurus.png',
+            href: 'img/docusaurus.png',
           },
           {
             tagName: 'link',
             rel: 'manifest',
-            href: '/manifest.json',
+            href: `${baseUrl}manifest.json`,
           },
           {
             tagName: 'meta',
@@ -86,18 +170,18 @@ module.exports = {
           {
             tagName: 'link',
             rel: 'apple-touch-icon',
-            href: '/img/docusaurus.png',
+            href: 'img/docusaurus.png',
           },
           {
             tagName: 'link',
             rel: 'mask-icon',
-            href: '/img/docusaurus.svg',
+            href: 'img/docusaurus.svg',
             color: 'rgb(62, 204, 94)',
           },
           {
             tagName: 'meta',
             name: 'msapplication-TileImage',
-            content: '/img/docusaurus.png',
+            content: 'img/docusaurus.png',
           },
           {
             tagName: 'meta',
@@ -110,20 +194,36 @@ module.exports = {
   ],
   presets: [
     [
-      '@docusaurus/preset-classic',
+      isBootstrapPreset
+        ? '@docusaurus/preset-bootstrap'
+        : '@docusaurus/preset-classic',
       {
+        debug: true, // force debug plugin usage
         docs: {
-          homePageId: 'introduction',
+          // routeBasePath: '/',
           path: 'docs',
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl:
             'https://github.com/facebook/docusaurus/edit/master/website/',
           showLastUpdateAuthor: true,
           showLastUpdateTime: true,
-          remarkPlugins: [require('./src/plugins/remark-npm2yarn')],
-          disableVersioning: !!process.env.DISABLE_VERSIONING,
+          remarkPlugins: [
+            [require('@docusaurus/remark-plugin-npm2yarn'), {sync: true}],
+          ],
+          disableVersioning: isVersioningDisabled,
+          lastVersion: 'current',
+          onlyIncludeVersions:
+            !isVersioningDisabled && (isDev || isDeployPreview)
+              ? ['current', ...versions.slice(0, 2)]
+              : undefined,
+          versions: {
+            current: {
+              label: `${getNextAlphaVersionName()} (unreleased)`,
+            },
+          },
         },
         blog: {
+          // routeBasePath: '/',
           path: '../website-1.x/blog',
           editUrl:
             'https://github.com/facebook/docusaurus/edit/master/website-1.x/',
@@ -132,14 +232,20 @@ module.exports = {
             type: 'all',
             copyright: `Copyright © ${new Date().getFullYear()} Facebook, Inc.`,
           },
+          blogSidebarCount: 'ALL',
+          blogSidebarTitle: 'All our posts',
+        },
+        pages: {
+          remarkPlugins: [require('@docusaurus/remark-plugin-npm2yarn')],
         },
         theme: {
-          customCss: require.resolve('./src/css/custom.css'),
+          customCss: [require.resolve('./src/css/custom.css')],
         },
       },
     ],
   ],
   themeConfig: {
+    hideableSidebar: true,
     colorMode: {
       defaultMode: 'light',
       disableSwitch: false,
@@ -155,15 +261,14 @@ module.exports = {
       darkTheme: require('prism-react-renderer/themes/dracula'),
     },
     image: 'img/docusaurus-soc.png',
+    // metadatas: [{name: 'twitter:card', content: 'summary'}],
     gtag: {
       trackingID: 'UA-141789564-1',
     },
     algolia: {
       apiKey: '47ecd3b21be71c5822571b9f59e52544',
       indexName: 'docusaurus-2',
-      algoliaOptions: {
-        facetFilters: [`version:${versions[0]}`],
-      },
+      contextualSearch: true,
     },
     navbar: {
       hideOnScroll: true,
@@ -173,42 +278,40 @@ module.exports = {
         src: 'img/docusaurus.svg',
         srcDark: 'img/docusaurus_keytar.svg',
       },
-      links: [
+      items: [
         {
-          label: 'Docs',
-          to: 'docs', // "fake" link
+          type: 'doc',
           position: 'left',
-          activeBaseRegex: `docs/(?!next/(support|team|resources))`,
-          items: [
-            {
-              label: versions[0],
-              to: 'docs/',
-              activeBaseRegex: `docs/(?!${versions.join('|')}|next)`,
-            },
-            ...versions.slice(1).map((version) => ({
-              label: version,
-              to: `docs/${version}/`,
-            })),
-            {
-              label: 'Master/Unreleased',
-              to: 'docs/next/',
-              activeBaseRegex: `docs/next/(?!support|team|resources)`,
-            },
-          ],
+          docId: 'introduction',
+          label: 'Docs',
+        },
+        {
+          type: 'doc',
+          position: 'left',
+          docId: 'cli',
+          label: 'API',
         },
         {to: 'blog', label: 'Blog', position: 'left'},
         {to: 'showcase', label: 'Showcase', position: 'left'},
         {
-          to: 'docs/next/support',
+          to: '/community/support',
           label: 'Community',
           position: 'left',
-          activeBaseRegex: `docs/next/(support|team|resources)`,
+          activeBaseRegex: `/community/`,
         },
+        // right
         {
-          to: 'versions',
-          label: `v${versions[0]}`,
+          type: 'docsVersionDropdown',
           position: 'right',
+          dropdownActiveClassDisabled: true,
+          dropdownItemsAfter: [
+            {
+              to: '/versions',
+              label: 'All versions',
+            },
+          ],
         },
+        // {type: 'localeDropdown', position: 'right'},
         {
           href: 'https://github.com/facebook/docusaurus',
           position: 'right',
@@ -233,7 +336,7 @@ module.exports = {
             },
             {
               label: 'Migration from v1 to v2',
-              to: 'docs/migrating-from-v1-to-v2',
+              to: 'docs/migration',
             },
           ],
         },
@@ -254,7 +357,7 @@ module.exports = {
             },
             {
               label: 'Help',
-              to: 'docs/next/support',
+              to: '/community/support',
             },
           ],
         },

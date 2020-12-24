@@ -22,22 +22,66 @@ import packageJson from '../../package.json';
 import preload from './preload';
 // eslint-disable-next-line import/no-unresolved
 import App from './App';
-import ssrTemplate from './templates/ssr.html.template';
+import {
+  createStatefulLinksCollector,
+  ProvideLinksCollector,
+} from './LinksCollector';
+import chalk from 'chalk';
+// eslint-disable-next-line no-restricted-imports
+import {memoize} from 'lodash';
+
+const getCompiledSSRTemplate = memoize((template) => {
+  return eta.compile(template.trim(), {
+    rmWhitespace: true,
+  });
+});
+
+function renderSSRTemplate(ssrTemplate, data) {
+  const compiled = getCompiledSSRTemplate(ssrTemplate);
+  return compiled(data, eta.defaultConfig);
+}
+
+export default async function render(locals) {
+  try {
+    return await doRender(locals);
+  } catch (e) {
+    console.error(
+      chalk.red(
+        `Docusaurus Node/SSR could not render static page with path=${locals.path} because of error: ${e.message}`,
+      ),
+    );
+    throw e;
+  }
+}
 
 // Renderer for static-site-generator-webpack-plugin (async rendering via promises).
-export default async function render(locals) {
-  const {routesLocation, headTags, preBodyTags, postBodyTags} = locals;
+async function doRender(locals) {
+  const {
+    routesLocation,
+    headTags,
+    preBodyTags,
+    postBodyTags,
+    onLinksCollected,
+    baseUrl,
+    ssrTemplate,
+    noIndex,
+  } = locals;
   const location = routesLocation[locals.path];
   await preload(routes, location);
   const modules = new Set();
   const context = {};
+
+  const linksCollector = createStatefulLinksCollector();
   const appHtml = ReactDOMServer.renderToString(
     <Loadable.Capture report={(moduleName) => modules.add(moduleName)}>
       <StaticRouter location={location} context={context}>
-        <App />
+        <ProvideLinksCollector linksCollector={linksCollector}>
+          <App />
+        </ProvideLinksCollector>
       </StaticRouter>
     </Loadable.Capture>,
   );
+  onLinksCollected(location, linksCollector.getCollectedLinks());
 
   const helmet = Helmet.renderStatic();
   const htmlAttributes = helmet.htmlAttributes.toString();
@@ -46,6 +90,7 @@ export default async function render(locals) {
     helmet.title.toString(),
     helmet.meta.toString(),
     helmet.link.toString(),
+    helmet.script.toString(),
   ];
   const metaAttributes = metaStrings.filter(Boolean);
 
@@ -59,37 +104,54 @@ export default async function render(locals) {
   const bundles = getBundles(manifest, modulesToBeLoaded);
   const stylesheets = (bundles.css || []).map((b) => b.file);
   const scripts = (bundles.js || []).map((b) => b.file);
-  const {baseUrl} = locals;
 
-  const renderedHtml = eta.render(
-    ssrTemplate.trim(),
-    {
-      appHtml,
-      baseUrl,
-      htmlAttributes: htmlAttributes || '',
-      bodyAttributes: bodyAttributes || '',
-      headTags,
-      preBodyTags,
-      postBodyTags,
-      metaAttributes,
-      scripts,
-      stylesheets,
-      version: packageJson.version,
-    },
-    {
-      name: 'ssr-template',
-      rmWhitespace: true,
-    },
-  );
+  const renderedHtml = renderSSRTemplate(ssrTemplate, {
+    appHtml,
+    baseUrl,
+    htmlAttributes: htmlAttributes || '',
+    bodyAttributes: bodyAttributes || '',
+    headTags,
+    preBodyTags,
+    postBodyTags,
+    metaAttributes,
+    scripts,
+    stylesheets,
+    noIndex,
+    version: packageJson.version,
+  });
 
   // Minify html with https://github.com/DanielRuf/html-minifier-terser
-  return minify(renderedHtml, {
-    removeComments: true,
-    removeRedundantAttributes: true,
-    removeEmptyAttributes: true,
-    removeScriptTypeAttributes: true,
-    removeStyleLinkTypeAttributes: true,
-    useShortDoctype: true,
-    minifyJS: true,
-  });
+  function doMinify() {
+    return minify(renderedHtml, {
+      removeComments: true,
+      removeRedundantAttributes: true,
+      removeEmptyAttributes: true,
+      removeScriptTypeAttributes: true,
+      removeStyleLinkTypeAttributes: true,
+      useShortDoctype: true,
+      minifyJS: true,
+    });
+  }
+
+  // TODO this is a temporary error affecting only monorepos due to Terser 5 (async) being used by html-minifier-terser,
+  // instead of the expected Terser 4 (sync)
+  // TODO, remove this once we upgrade everything to Terser 5 (https://github.com/terser/html-minifier-terser/issues/46)
+  // See also
+  // - https://github.com/facebook/docusaurus/issues/3515
+  // - https://github.com/terser/html-minifier-terser/issues/49
+  try {
+    return doMinify();
+  } catch (e) {
+    if (
+      e.message &&
+      e.message.includes("Cannot read property 'replace' of undefined")
+    ) {
+      console.error(
+        chalk.red(
+          '\nDocusaurus user: you probably have this known error due to using a monorepo/workspace.\nWe have a workaround for you, check https://github.com/facebook/docusaurus/issues/3515\n',
+        ),
+      );
+    }
+    throw e;
+  }
 }

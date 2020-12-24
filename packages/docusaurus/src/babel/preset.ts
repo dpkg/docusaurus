@@ -27,9 +27,9 @@ function getTransformOptions(isServer: boolean): TransformOptions {
         : [
             require.resolve('@babel/preset-env'),
             {
-              useBuiltIns: 'usage',
+              useBuiltIns: 'entry',
               loose: true,
-              corejs: '2',
+              corejs: '3',
               // Do not transform modules to CJS
               modules: false,
               // Exclude transforms that make all code slower
@@ -79,4 +79,4 @@ function babelPresets(api: ConfigAPI): TransformOptions {
   return getTransformOptions(callerName === 'server');
 }
 
-export = babelPresets;
+export default babelPresets;

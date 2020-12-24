@@ -12,6 +12,7 @@ import {MDXProvider} from '@mdx-js/react';
 import Head from '@docusaurus/Head';
 import Link from '@docusaurus/Link';
 import MDXComponents from '@theme/MDXComponents';
+import type {Props} from '@theme/BlogPostItem';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
 import styles from './styles.module.css';
@@ -31,7 +32,7 @@ const MONTHS = [
   'December',
 ];
 
-function BlogPostItem(props): JSX.Element {
+function BlogPostItem(props: Props): JSX.Element {
   const {
     children,
     frontMatter,
@@ -40,7 +41,7 @@ function BlogPostItem(props): JSX.Element {
     isBlogPostPage = false,
   } = props;
   const {date, permalink, tags, readingTime} = metadata;
-  const {author, title, image} = frontMatter;
+  const {author, title, image, keywords} = frontMatter;
 
   const authorURL = frontMatter.author_url || frontMatter.authorURL;
   const authorTitle = frontMatter.author_title || frontMatter.authorTitle;
@@ -97,8 +98,11 @@ function BlogPostItem(props): JSX.Element {
   return (
     <>
       <Head>
+        {keywords && keywords.length && (
+          <meta name="keywords" content={keywords.join(',')} />
+        )}
         {image && <meta property="og:image" content={imageUrl} />}
-        {image && <meta property="twitter:image" content={imageUrl} />}
+        {image && <meta name="twitter:image" content={imageUrl} />}
         {image && (
           <meta name="twitter:image:alt" content={`Image for ${title}`} />
         )}

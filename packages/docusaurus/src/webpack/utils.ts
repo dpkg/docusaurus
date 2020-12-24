@@ -8,10 +8,25 @@
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import env from 'std-env';
 import merge from 'webpack-merge';
-import webpack, {Configuration, Loader, RuleSetRule, Stats} from 'webpack';
+import webpack, {
+  Configuration,
+  Loader,
+  Plugin,
+  RuleSetRule,
+  Stats,
+} from 'webpack';
+import fs from 'fs-extra';
+import TerserPlugin from 'terser-webpack-plugin';
+import OptimizeCSSAssetsPlugin from 'optimize-css-assets-webpack-plugin';
+import CleanCss from 'clean-css';
+import path from 'path';
+import crypto from 'crypto';
+import chalk from 'chalk';
 import {TransformOptions} from '@babel/core';
 import {ConfigureWebpackFn} from '@docusaurus/types';
+import CssNanoPreset from '@docusaurus/cssnano-preset';
 import {version as cacheLoaderVersion} from 'cache-loader/package.json';
+import {BABEL_CONFIG_FILE_NAME, STATIC_ASSETS_DIR_NAME} from '../constants';
 
 // Utility method to get style loaders
 export function getStyleLoaders(
@@ -58,7 +73,7 @@ export function getStyleLoaders(
             autoprefixer: {
               flexbox: 'no-2009',
             },
-            stage: 3,
+            stage: 4,
           }),
         ],
       },
@@ -84,19 +99,33 @@ export function getCacheLoader(
   };
 }
 
-export function getBabelLoader(
-  isServer: boolean,
-  babelOptions?: TransformOptions | string,
-): Loader {
-  let options: TransformOptions;
+export function getCustomBabelConfigFilePath(
+  siteDir: string,
+): string | undefined {
+  const customBabelConfigurationPath = path.join(
+    siteDir,
+    BABEL_CONFIG_FILE_NAME,
+  );
+  return fs.existsSync(customBabelConfigurationPath)
+    ? customBabelConfigurationPath
+    : undefined;
+}
+
+export function getBabelOptions({
+  isServer,
+  babelOptions,
+}: {
+  isServer?: boolean;
+  babelOptions?: TransformOptions | string;
+} = {}): TransformOptions {
   if (typeof babelOptions === 'string') {
-    options = {
+    return {
       babelrc: false,
       configFile: babelOptions,
       caller: {name: isServer ? 'server' : 'client'},
     };
   } else {
-    options = Object.assign(
+    return Object.assign(
       babelOptions ?? {presets: [require.resolve('../babel/preset')]},
       {
         babelrc: false,
@@ -105,9 +134,15 @@ export function getBabelLoader(
       },
     );
   }
+}
+
+export function getBabelLoader(
+  isServer: boolean,
+  babelOptions?: TransformOptions | string,
+): Loader {
   return {
     loader: require.resolve('babel-loader'),
-    options,
+    options: getBabelOptions({isServer, babelOptions}),
   };
 }
 
@@ -138,29 +173,53 @@ export function applyConfigureWebpack(
   return config;
 }
 
+// See https://webpack.js.org/configuration/stats/#statswarningsfilter
+// @slorber: note sure why we have to re-implement this logic
+// just know that legacy had this only partially implemented, so completed it
+type WarningFilter = string | RegExp | Function;
+function filterWarnings(
+  warningsFilter: WarningFilter[],
+  warnings: string[],
+): string[] {
+  function isWarningFiltered(warning: string): boolean {
+    return warningsFilter.some((warningFilter) => {
+      if (typeof warningFilter === 'string') {
+        return warning.includes(warningFilter);
+      } else if (warningFilter instanceof RegExp) {
+        return !!warning.match(warningFilter);
+      } else if (warningFilter instanceof Function) {
+        return warningFilter(warning);
+      } else {
+        throw new Error(`Unknown warningFilter type = ${typeof warningFilter}`);
+      }
+    });
+  }
+
+  return warnings.filter((warning) => !isWarningFiltered(warning));
+}
+
 export function compile(config: Configuration[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const compiler = webpack(config);
     compiler.run((err, stats) => {
       if (err) {
-        reject(err);
+        reject(new Error(err.toString()));
       }
-      if (stats.hasErrors()) {
+      if (stats?.hasErrors()) {
         stats.toJson('errors-only').errors.forEach((e) => {
           console.error(e);
         });
         reject(new Error('Failed to compile with errors.'));
       }
-      if (stats.hasWarnings()) {
+      if (stats?.hasWarnings()) {
         // Custom filtering warnings (see https://github.com/webpack/webpack/issues/7841).
         let {warnings} = stats.toJson('errors-warnings');
+
         const warningsFilter = ((config[0].stats as Stats.ToJsonOptionsObject)
-          ?.warningsFilter || []) as any[];
+          ?.warningsFilter || []) as WarningFilter[];
 
         if (Array.isArray(warningsFilter)) {
-          warnings = warnings.filter((warning) =>
-            warningsFilter.every((str) => !warning.includes(str)),
-          );
+          warnings = filterWarnings(warningsFilter, warnings);
         }
 
         warnings.forEach((warning) => {
@@ -172,31 +231,48 @@ export function compile(config: Configuration[]): Promise<void> {
   });
 }
 
+type AssetFolder = 'images' | 'files' | 'medias';
+
 // Inspired by https://github.com/gatsbyjs/gatsby/blob/8e6e021014da310b9cc7d02e58c9b3efe938c665/packages/gatsby/src/utils/webpack-utils.ts#L447
-export function getFileLoaderUtils() {
-  const assetsRelativeRoot = 'assets/';
+export function getFileLoaderUtils(): Record<string, any> {
+  // files/images < 10kb will be inlined as base64 strings directly in the html
+  const urlLoaderLimit = 10000;
+
+  // defines the path/pattern of the assets handled by webpack
+  const fileLoaderFileName = (folder: AssetFolder) =>
+    `${STATIC_ASSETS_DIR_NAME}/${folder}/[name]-[hash].[ext]`;
 
   const loaders = {
-    file: (options = {}) => {
+    file: (options: {folder: AssetFolder}) => {
       return {
         loader: require.resolve(`file-loader`),
         options: {
-          name: `${assetsRelativeRoot}[name]-[hash].[ext]`,
-          ...options,
+          name: fileLoaderFileName(options.folder),
         },
       };
     },
-    url: (options = {}) => {
+    url: (options: {folder: AssetFolder}) => {
       return {
         loader: require.resolve(`url-loader`),
         options: {
-          limit: 10000,
-          name: `${assetsRelativeRoot}[name]-[hash].[ext]`,
+          limit: urlLoaderLimit,
+          name: fileLoaderFileName(options.folder),
           fallback: require.resolve(`file-loader`),
-          ...options,
         },
       };
     },
+
+    // TODO find a better solution to avoid conflicts with the ideal-image plugin
+    // TODO this may require a little breaking change for ideal-image users?
+    // Maybe with the ideal image plugin, all md images should be "ideal"?
+    // This is used to force url-loader+file-loader on markdown images
+    // https://webpack.js.org/concepts/loaders/#inline
+    inlineMarkdownImageFileLoader: `!url-loader?limit=${urlLoaderLimit}&name=${fileLoaderFileName(
+      'images',
+    )}&fallback=file-loader!`,
+    inlineMarkdownLinkFileLoader: `!file-loader?name=${fileLoaderFileName(
+      'files',
+    )}!`,
   };
 
   const rules = {
@@ -206,8 +282,8 @@ export function getFileLoaderUtils() {
      */
     images: (): RuleSetRule => {
       return {
-        use: [loaders.url()],
-        test: /\.(ico|svg|jpg|jpeg|png|gif|webp)(\?.*)?$/,
+        use: [loaders.url({folder: 'images'})],
+        test: /\.(ico|jpg|jpeg|png|gif|webp)(\?.*)?$/,
       };
     },
 
@@ -217,18 +293,182 @@ export function getFileLoaderUtils() {
      */
     media: (): RuleSetRule => {
       return {
-        use: [loaders.url()],
+        use: [loaders.url({folder: 'medias'})],
         test: /\.(mp4|webm|ogv|wav|mp3|m4a|aac|oga|flac)$/,
+      };
+    },
+
+    svg: (): RuleSetRule => {
+      return {
+        use: [
+          {
+            loader: '@svgr/webpack',
+            options: {
+              prettier: false,
+              svgo: true,
+              svgoConfig: {
+                plugins: [{removeViewBox: false}],
+              },
+              titleProp: true,
+              ref: ![path],
+            },
+          },
+        ],
+        test: /\.svg$/,
       };
     },
 
     otherAssets: (): RuleSetRule => {
       return {
-        use: [loaders.file()],
+        use: [loaders.file({folder: 'files'})],
         test: /\.(pdf|doc|docx|xls|xlsx|zip|rar)$/,
       };
     },
   };
 
   return {loaders, rules};
+}
+
+// Ensure the certificate and key provided are valid and if not
+// throw an easy to debug error
+function validateKeyAndCerts({cert, key, keyFile, crtFile}) {
+  let encrypted;
+  try {
+    // publicEncrypt will throw an error with an invalid cert
+    encrypted = crypto.publicEncrypt(cert, Buffer.from('test'));
+  } catch (err) {
+    throw new Error(
+      `The certificate "${chalk.yellow(crtFile)}" is invalid.\n${err.message}`,
+    );
+  }
+
+  try {
+    // privateDecrypt will throw an error with an invalid key
+    crypto.privateDecrypt(key, encrypted);
+  } catch (err) {
+    throw new Error(
+      `The certificate key "${chalk.yellow(keyFile)}" is invalid.\n${
+        err.message
+      }`,
+    );
+  }
+}
+
+// Read file and throw an error if it doesn't exist
+function readEnvFile(file, type) {
+  if (!fs.existsSync(file)) {
+    throw new Error(
+      `You specified ${chalk.cyan(
+        type,
+      )} in your env, but the file "${chalk.yellow(file)}" can't be found.`,
+    );
+  }
+  return fs.readFileSync(file);
+}
+
+const appDirectory = fs.realpathSync(process.cwd());
+// Get the https config
+// Return cert files if provided in env, otherwise just true or false
+export function getHttpsConfig(): boolean | {cert: Buffer; key: Buffer} {
+  const {SSL_CRT_FILE, SSL_KEY_FILE, HTTPS} = process.env;
+  const isHttps = HTTPS === 'true';
+
+  if (isHttps && SSL_CRT_FILE && SSL_KEY_FILE) {
+    const crtFile = path.resolve(appDirectory, SSL_CRT_FILE);
+    const keyFile = path.resolve(appDirectory, SSL_KEY_FILE);
+    const config = {
+      cert: readEnvFile(crtFile, 'SSL_CRT_FILE'),
+      key: readEnvFile(keyFile, 'SSL_KEY_FILE'),
+    };
+
+    validateKeyAndCerts({...config, keyFile, crtFile});
+    return config;
+  }
+  return isHttps;
+}
+
+// See https://github.com/webpack-contrib/terser-webpack-plugin#parallel
+function getTerserParallel() {
+  let terserParallel: boolean | number = true;
+  if (process.env.TERSER_PARALLEL === 'false') {
+    terserParallel = false;
+  } else if (
+    process.env.TERSER_PARALLEL &&
+    parseInt(process.env.TERSER_PARALLEL, 10) > 0
+  ) {
+    terserParallel = parseInt(process.env.TERSER_PARALLEL, 10);
+  }
+  return terserParallel;
+}
+
+export function getMinimizer(useSimpleCssMinifier = false): Plugin[] {
+  const minimizer = [
+    new TerserPlugin({
+      cache: true,
+      parallel: getTerserParallel(),
+      sourceMap: false,
+      terserOptions: {
+        parse: {
+          // we want uglify-js to parse ecma 8 code. However, we don't want it
+          // to apply any minification steps that turns valid ecma 5 code
+          // into invalid ecma 5 code. This is why the 'compress' and 'output'
+          // sections only apply transformations that are ecma 5 safe
+          // https://github.com/facebook/create-react-app/pull/4234
+          ecma: 8,
+        },
+        compress: {
+          ecma: 5,
+          warnings: false,
+        },
+        mangle: {
+          safari10: true,
+        },
+        output: {
+          ecma: 5,
+          comments: false,
+          // Turned on because emoji and regex is not minified properly using default
+          // https://github.com/facebook/create-react-app/issues/2488
+          ascii_only: true,
+        },
+      },
+    }),
+  ];
+
+  if (useSimpleCssMinifier) {
+    minimizer.push(
+      new OptimizeCSSAssetsPlugin({
+        cssProcessorPluginOptions: {
+          preset: 'default',
+        },
+      }),
+    );
+  } else {
+    minimizer.push(
+      ...[
+        new OptimizeCSSAssetsPlugin({
+          cssProcessorPluginOptions: {
+            preset: CssNanoPreset,
+          },
+        }),
+        new OptimizeCSSAssetsPlugin({
+          cssProcessor: CleanCss,
+          cssProcessorOptions: {
+            inline: false,
+            level: {
+              1: {
+                all: false,
+              },
+              2: {
+                all: true,
+                restructureRules: true,
+                removeUnusedAtRules: false,
+              },
+            },
+          },
+        }),
+      ],
+    );
+  }
+
+  return minimizer;
 }

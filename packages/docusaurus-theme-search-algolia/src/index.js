@@ -8,17 +8,31 @@
 const path = require('path');
 const fs = require('fs');
 const eta = require('eta');
-const {normalizeUrl} = require('@docusaurus/utils');
+const {normalizeUrl, getSwizzledComponent} = require('@docusaurus/utils');
 const openSearchTemplate = require('./templates/opensearch');
+const {validateThemeConfig} = require('./validateThemeConfig');
+const {memoize} = require('lodash');
+
+const getCompiledOpenSearchTemplate = memoize(() => {
+  return eta.compile(openSearchTemplate.trim());
+});
+
+function renderOpenSearchTemplate(data) {
+  const compiled = getCompiledOpenSearchTemplate();
+  return compiled(data, eta.defaultConfig);
+}
 
 const OPEN_SEARCH_FILENAME = 'opensearch.xml';
 
-module.exports = function (context) {
+function theme(context) {
   const {
     baseUrl,
     siteConfig: {title, url, favicon},
   } = context;
-  const pagePath = path.resolve(__dirname, './pages/search/index.js');
+  const pageComponent = './theme/SearchPage/index.js';
+  const pagePath =
+    getSwizzledComponent(pageComponent) ||
+    path.resolve(__dirname, pageComponent);
 
   return {
     name: 'docusaurus-theme-search-algolia',
@@ -29,26 +43,6 @@ module.exports = function (context) {
 
     getPathsToWatch() {
       return [pagePath];
-    },
-
-    configureWebpack() {
-      // Ensure that algolia docsearch styles is its own chunk.
-      return {
-        optimization: {
-          splitChunks: {
-            cacheGroups: {
-              algolia: {
-                name: 'algolia',
-                test: /algolia\.css$/,
-                chunks: `all`,
-                enforce: true,
-                // Set priority higher than docusaurus single-css extraction.
-                priority: 60,
-              },
-            },
-          },
-        },
-      };
     },
 
     async contentLoaded({actions: {addRoute}}) {
@@ -63,13 +57,14 @@ module.exports = function (context) {
       try {
         fs.writeFileSync(
           path.join(outDir, OPEN_SEARCH_FILENAME),
-          eta.render(openSearchTemplate.trim(), {
+          renderOpenSearchTemplate({
             title,
             url,
             favicon: normalizeUrl([url, favicon]),
           }),
         );
       } catch (err) {
+        console.error(err);
         throw new Error(`Generating OpenSearch file failed: ${err}`);
       }
     },
@@ -90,4 +85,8 @@ module.exports = function (context) {
       };
     },
   };
-};
+}
+
+module.exports = theme;
+
+theme.validateThemeConfig = validateThemeConfig;
